@@ -1,0 +1,9 @@
+{
+  "client_id": "demo-001",
+  "risk_profile": "moderado",
+  "cash_balance": 5000.0,
+  "positions": [
+    {"ticker": "AAPL", "qty": 12, "avg_price": 210.5},
+    {"ticker": "MELI", "qty": 3, "avg_price": 1800.0}
+  ]
+}

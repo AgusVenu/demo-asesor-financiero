@@ -1,0 +1,25 @@
+[project]
+name = "asesor-financiero-mcp"
+version = "0.1.0"
+description = "MCP server (research de mercado, portafolio y órdenes PPI) del demo de asesor financiero"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=2,<3",
+  "langchain-core>=0.3,<0.4",
+  "langgraph>=0.6,<0.7",
+  "langgraph-checkpoint-sqlite>=2,<3",
+  "yfinance>=1.2,<2",
+  "requests>=2,<3",
+  "python-dotenv>=1.0,<2",
+  "ppi-client",
+]
+
+[project.scripts]
+asesor-financiero-mcp = "mcp_server.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mcp_server*", "src*"]

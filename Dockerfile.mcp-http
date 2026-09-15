@@ -1,0 +1,18 @@
+# Servicio liviano: el mismo MCP server del asesor financiero, servido por
+# HTTP/SSE (ver mcp_server/http_server.py) para instancias de Hermes que
+# solo pueden agregar MCP servers remotos por URL. No incluye Hermes en sí
+# — es un proceso Python chico independiente del servicio principal.
+#
+# En Railway: este servicio usa Dockerfile Path = Dockerfile.mcp-http
+# (el servicio principal, con la instalación completa de Hermes, usa el
+# Dockerfile de la raíz).
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src ./src
+COPY mcp_server ./mcp_server
+
+CMD ["python", "mcp_server/http_server.py"]

@@ -1,0 +1,31 @@
+# Opciones de producción para un agente de IA
+
+## 1. VM propia (EC2, GCE, Droplet, servidor físico)
+Instalás el SO, Docker (o el runtime directo), configurás red/firewall/TLS a mano, y corrés el agente como proceso/systemd/contenedor.
+- Control: total — elegís CPU/RAM exactos, corre cualquier cosa (browser tools, GPU, lo que sea).
+- Esfuerzo: alto — sos el sysadmin (parches de seguridad, backups, monitoreo, reinicios si se cae).
+- Costo: predecible, generalmente el más barato por recurso si lo sabés administrar.
+- Encaja con Hermes: sí, 1 a 1 — es lo mismo que en Railway pero sin la capa de PaaS.
+
+## 2. PaaS orientado a contenedores (Railway, Render, Fly.io)
+Subís un Dockerfile, la plataforma maneja red/TLS/reinicios/logs por vos.
+- Control: medio — tu Dockerfile define el runtime, no tocás el hipervisor/red.
+- Esfuerzo: bajo — sin sysadmin, pero hay que lidiar con particularidades de la plataforma.
+- Costo: variable según uso, buen punto medio para un solo agente.
+- Encaja con Hermes: sí — es el enfoque usado en este proyecto.
+
+## 3. Serverless / contenedores administrados (Cloud Run, AWS Fargate, Azure Container Apps)
+Parecido a #2 pero de un hyperscaler, con autoscaling a cero.
+- Control: medio-bajo — corre tu contenedor, pero pensado para procesos que escalan a demanda, no un daemon único con estado persistente.
+- Esfuerzo: bajo, pero un agente tipo Hermes no encaja bien — necesita proceso siempre vivo + filesystem local (SQLite, sesiones), y esto quiere stateless + escalado horizontal. Se puede forzar (min-instances=1, volumen), pero es nadar contra la corriente del producto.
+- Costo: puede ser más caro que #2 si se mantiene siempre prendido (no se aprovecha el escalado a cero).
+
+## 4. Plataforma de agentes administrada (Vertex AI Agent Builder/Agent Engine, AWS Bedrock Agents, Azure AI Foundry Agent Service)
+No corrés un binario de terceros — reconstruís la lógica del agente (tools, prompts, memoria) con el SDK del proveedor; ellos manejan hosting, scaling, y a veces el LLM.
+- Control: bajo sobre infraestructura, pero mucho tooling de observabilidad/evals/guardrails integrado.
+- Esfuerzo: bajo en ops, alto en migración — no es "deployar Hermes acá", es otra arquitectura. Se pierden las skills en formato SKILL.md, el MCP server tal cual, y el gateway multiplataforma.
+- Costo: suele cobrar por uso (tokens + invocaciones); más caro en volumen, sin costo fijo de servidor.
+- Encaja con Hermes: no directamente — sería un proyecto nuevo, no una migración.
+
+---
+Resumen para un agente Hermes ya armado (MCP server + skills): la opción 2 es la mejor relación esfuerzo/control. La 1 tiene sentido si el plan barato de un PaaS se queda corto en RAM. La 3 y la 4 implican repensar la arquitectura.
