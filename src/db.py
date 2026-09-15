@@ -15,11 +15,20 @@ conexión, así que la conversación en curso vive en el mismo archivo.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+# Por defecto, `data/` al lado del repo (comportamiento de siempre para la
+# app LangGraph). Si este proyecto corre como paquete instalado (ej. el MCP
+# server de Hermes vía `uvx --from git+...`), esa ruta cae dentro del
+# entorno aislado que arma uvx — `ASESOR_FINANCIERO_DATA_DIR` permite
+# apuntarla a un lugar estable en cambio.
+DATA_DIR = Path(
+    os.environ.get("ASESOR_FINANCIERO_DATA_DIR")
+    or (Path(__file__).resolve().parent.parent / "data")
+)
 DB_PATH = DATA_DIR / "memory.db"
 SEED_PORTFOLIO_PATH = DATA_DIR / "portfolio.json"
 
@@ -110,13 +119,29 @@ def init_db() -> None:
         _initialized = True
 
 
+_FALLBACK_SEED_PORTFOLIO = {
+    "client_id": "demo-001",
+    "risk_profile": "moderado",
+    "cash_balance": 0.0,
+    "positions": [],
+}
+
+
 def _seed_portfolio_if_empty(conn: sqlite3.Connection) -> None:
+    """Siembra la fila 1 de `portfolio` si no existe — sin esto,
+    `load_portfolio()` devuelve `None` y cualquier tool que lo use revienta
+    con `'NoneType' object is not subscriptable`. `data/portfolio.json` es
+    el seed "de muestra" del repo, pero no viaja empaquetado cuando este
+    proyecto se instala como paquete (ej. `uvx --from git+...` para el MCP
+    server de Hermes) — ahí no existe ese archivo, así que hace falta un
+    fallback en código para que la fila siempre quede creada."""
     row = conn.execute("SELECT 1 FROM portfolio WHERE id = 1").fetchone()
     if row is not None:
         return
-    if not SEED_PORTFOLIO_PATH.exists():
-        return
-    seed = json.loads(SEED_PORTFOLIO_PATH.read_text())
+    if SEED_PORTFOLIO_PATH.exists():
+        seed = json.loads(SEED_PORTFOLIO_PATH.read_text())
+    else:
+        seed = _FALLBACK_SEED_PORTFOLIO
     conn.execute(
         "INSERT INTO portfolio (id, client_id, risk_profile, cash_balance) VALUES (1, ?, ?, ?)",
         (seed["client_id"], seed["risk_profile"], seed["cash_balance"]),
