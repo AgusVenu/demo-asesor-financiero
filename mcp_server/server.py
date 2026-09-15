@@ -74,6 +74,18 @@ mcp = MCPServer("asesor-financiero")
 _pending_orders: dict[str, dict] = {}
 
 
+def _safe_call(fn, **kwargs):
+    """Ejecuta una tool que pega a una API externa (Yahoo Finance,
+    ArgentinaDatos, PPI) y devuelve un error legible en vez de dejar
+    escapar la excepción cruda — sin esto, un fallo de red o de
+    credenciales inválidas de PPI llegaba como un "system error" opaco del
+    lado de Hermes, sin ninguna pista de qué pasó."""
+    try:
+        return fn(**kwargs)
+    except Exception as exc:
+        return {"status": "error", "motivo": str(exc)}
+
+
 def _audit(tool_name: str, args: dict, result: object, duration_ms: float) -> None:
     init_db()
     with LOCK:
@@ -102,7 +114,7 @@ def get_market_snapshot(ticker: str) -> dict:
     rango de las últimas 52 semanas. Usar siempre que el cliente pregunte
     por una acción puntual (ej. "¿cómo está GGAL hoy?")."""
     start = time.monotonic()
-    result = _get_market_snapshot_tool.func(ticker=ticker)
+    result = _safe_call(_get_market_snapshot_tool.func, ticker=ticker)
     _audit("get_market_snapshot", {"ticker": ticker}, result, (time.monotonic() - start) * 1000)
     return result
 
@@ -114,7 +126,7 @@ def get_market_overview() -> list:
     cuando el cliente pregunte en general por "el mercado" o "las
     principales acciones", sin mencionar un ticker puntual."""
     start = time.monotonic()
-    result = _get_market_overview_tool.func()
+    result = _safe_call(_get_market_overview_tool.func)
     _audit("get_market_overview", {}, result, (time.monotonic() - start) * 1000)
     return result
 
@@ -135,7 +147,7 @@ def get_macro_series(indicator: str, months: int = 12) -> dict:
     `months` (default 12, máximo 60): cuántos meses recientes traer."""
     start = time.monotonic()
     args = {"indicator": indicator, "months": months}
-    result = _get_macro_series_tool.func(indicator=indicator, months=months)
+    result = _safe_call(_get_macro_series_tool.func, indicator=indicator, months=months)
     _audit("get_macro_series", args, result, (time.monotonic() - start) * 1000)
     return result
 
@@ -145,7 +157,7 @@ def get_portfolio_summary() -> dict:
     """Devuelve las posiciones y el efectivo disponible REALES de la cuenta
     de PPI conectada, junto con el perfil de riesgo declarado del cliente."""
     start = time.monotonic()
-    result = _get_portfolio_summary_tool.func()
+    result = _safe_call(_get_portfolio_summary_tool.func)
     _audit("get_portfolio_summary", {}, result, (time.monotonic() - start) * 1000)
     return result
 
@@ -228,7 +240,8 @@ def buy_stock(ticker: str) -> dict:
         _audit("buy_stock", args, result, (time.monotonic() - start) * 1000)
         return result
 
-    result = _buy_stock_tool.func(
+    result = _safe_call(
+        _buy_stock_tool.func,
         ticker=ticker_key,
         quantity=pending.get("qty"),
         reference_price=pending.get("reference_price") or 0.0,
