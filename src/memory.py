@@ -22,8 +22,6 @@ en otro.
 """
 import sqlite3
 
-from langgraph.checkpoint.sqlite import SqliteSaver
-
 import src.db as db
 from src.db import LOCK, get_connection, init_db
 
@@ -38,9 +36,18 @@ def get_checkpointer():
     `monkeypatch.setattr(db, "DB_PATH", ...)` — un import por valor copiaría
     el path original y el checkpointer terminaría escribiendo siempre sobre
     `data/memory.db` real, aunque el resto de la memoria esté aislado.
+
+    El import de `langgraph` va acá adentro (no al tope del módulo) a
+    propósito: `load_portfolio`/`save_portfolio`/`load_orders`/
+    `append_order` no lo necesitan para nada, y el MCP server de Hermes
+    (`mcp_server/server.py`) importa este módulo solo por esas — quien lo
+    instala vía `uvx` no debería tener que bajar todo `langgraph` y sus
+    dependencias transitivas nada más que por este import.
     """
     global _checkpointer
     if _checkpointer is None:
+        from langgraph.checkpoint.sqlite import SqliteSaver
+
         init_db()
         checkpointer_conn = sqlite3.connect(str(db.DB_PATH), check_same_thread=False)
         _checkpointer = SqliteSaver(checkpointer_conn)
